@@ -23,6 +23,9 @@ LOOKBACK_OPTIONS = {
     "All available history": None,
 }
 ANOMALY_THRESHOLD = 3.0
+SEVERITY_MEDIUM = 3.0
+SEVERITY_HIGH = 5.0
+SEVERITY_CRITICAL = 8.0
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 LOGGER = logging.getLogger(__name__)
@@ -298,6 +301,46 @@ def latest_snapshot(history_df: pd.DataFrame) -> pd.DataFrame:
     return history_df[history_df["timestamp"] == latest_timestamp].copy()
 
 
+def freshness_status(latest_timestamp: pd.Timestamp | None) -> tuple[str, str, str]:
+    """Classify pipeline freshness from latest timestamp.
+
+    Args:
+        latest_timestamp: Most recent timestamp in the dataset.
+
+    Returns:
+        tuple[str, str, str]: Status label, Streamlit state color, and detail text.
+    """
+    if latest_timestamp is None:
+        return "UNKNOWN", "error", "No historical telemetry available yet."
+
+    stale_minutes = (pd.Timestamp.now(tz="UTC") - latest_timestamp).total_seconds() / 60
+    if stale_minutes <= 20:
+        return "HEALTHY", "success", f"Data is fresh. Last update {stale_minutes:.1f} minutes ago."
+    if stale_minutes <= 60:
+        return "DEGRADED", "warning", f"Data is aging. Last update {stale_minutes:.1f} minutes ago."
+    return "STALE", "error", f"Data is stale. Last update {stale_minutes:.1f} minutes ago."
+
+
+def render_pipeline_banner(history_df: pd.DataFrame) -> None:
+    """Render top-of-page pipeline freshness banner.
+
+    Args:
+        history_df: Full historical telemetry DataFrame.
+
+    Returns:
+        None.
+    """
+    latest_timestamp = history_df["timestamp"].max() if not history_df.empty else None
+    label, tone, detail = freshness_status(latest_timestamp)
+    message = f"Pipeline status: {label} | {detail}"
+    if tone == "success":
+        st.success(message)
+    elif tone == "warning":
+        st.warning(message)
+    else:
+        st.error(message)
+
+
 def render_header(snapshot_df: pd.DataFrame, filtered_df: pd.DataFrame) -> None:
     """Render page header and KPI strip.
 
@@ -447,6 +490,16 @@ def render_anomaly_center(snapshot_df: pd.DataFrame, filtered_df: pd.DataFrame) 
         None.
     """
     st.markdown("<div class='dsn-panel'><h3>Anomaly Center</h3></div>", unsafe_allow_html=True)
+    if not snapshot_df.empty:
+        abs_z = snapshot_df["z_score"].abs() if "z_score" in snapshot_df.columns else pd.Series(dtype=float)
+        medium_count = int(((abs_z > SEVERITY_MEDIUM) & (abs_z <= SEVERITY_HIGH)).sum())
+        high_count = int(((abs_z > SEVERITY_HIGH) & (abs_z <= SEVERITY_CRITICAL)).sum())
+        critical_count = int((abs_z > SEVERITY_CRITICAL).sum())
+        sev_cols = st.columns(3)
+        sev_cols[0].metric("Medium severity (|z| 3-5)", medium_count)
+        sev_cols[1].metric("High severity (|z| 5-8)", high_count)
+        sev_cols[2].metric("Critical severity (|z| > 8)", critical_count)
+
     left_col, right_col = st.columns([1.4, 1])
 
     anomaly_df = snapshot_df[snapshot_df["is_anomaly"]].copy() if not snapshot_df.empty else pd.DataFrame()
@@ -616,10 +669,7 @@ def render_pipeline_health(history_df: pd.DataFrame, baseline_df: pd.DataFrame) 
     latest_update = latest_timestamp.strftime("%Y-%m-%d %H:%M:%S UTC") if latest_timestamp is not None else "Unavailable"
     baseline_count = len(baseline_df)
     output_status = "available" if REPORT_PATH.exists() else "missing"
-    stale_minutes = (
-        (pd.Timestamp.now(tz="UTC") - latest_timestamp).total_seconds() / 60 if latest_timestamp is not None else float("inf")
-    )
-    freshness = "healthy" if stale_minutes <= 20 else "stale"
+    freshness, _, _ = freshness_status(latest_timestamp)
 
     health_cols = st.columns(4)
     health_cols[0].metric("History rows", f"{history_rows:,}")
@@ -690,6 +740,7 @@ def main() -> None:
     filtered_df = apply_filters(history_df, *controls)
     snapshot_df = latest_snapshot(filtered_df if not filtered_df.empty else history_df)
 
+    render_pipeline_banner(history_df)
     render_header(snapshot_df, filtered_df)
     render_complex_status(snapshot_df)
     render_signal_trends(filtered_df)
