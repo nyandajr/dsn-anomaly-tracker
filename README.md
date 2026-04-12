@@ -27,6 +27,14 @@ pip install -r requirements.txt
 python main.py
 ```
 
+4. Launch the Streamlit dashboard:
+
+```bash
+streamlit run streamlit_app.py
+```
+
+The dashboard provides an operations-console view of the latest DSN snapshot, anomaly activity, complex status, spacecraft drill-downs, and pipeline health using the locally stored `data/history.csv` and `models/baselines.json` files.
+
 ## Output Chart
 
 The report in `outputs/signal_report.png` contains two panels over the latest ~24 hours (last 144 rows):
