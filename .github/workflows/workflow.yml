@@ -48,14 +48,5 @@ jobs:
             echo "No artifact changes to commit"
             exit 0
           fi
-          git commit -m "chore: DSN update ${TIMESTAMP}"
-          for attempt in 1 2 3; do
-            if git push origin HEAD:main; then
-              echo "Push succeeded on attempt ${attempt}"
-              exit 0
-            fi
-            echo "Push failed on attempt ${attempt}, rebasing and retrying..."
-            git pull --rebase origin main
-          done
-          echo "Push failed after 3 attempts"
-          exit 1
+          git commit -m "chore: DSN update ${TIMESTAMP} [skip ci]"
+          git push --force-with-lease origin HEAD:main
