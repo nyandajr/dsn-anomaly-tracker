@@ -41,6 +41,8 @@ jobs:
         run: |
           git config user.email "actions@github.com"
           git config user.name "DSN Bot"
+          git fetch origin main
+          git reset --soft origin/main
           git add data/history.csv outputs/signal_report.png models/baselines.json
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           if git diff --staged --quiet; then
@@ -48,5 +50,4 @@ jobs:
             exit 0
           fi
           git commit -m "chore: DSN update ${TIMESTAMP} [skip ci]"
-          git pull --rebase origin main
-          git push --force-with-lease origin HEAD:main
+          git push --force origin HEAD:main
