@@ -48,5 +48,13 @@ jobs:
             exit 0
           fi
           git commit -m "chore: DSN update ${TIMESTAMP}"
-          git pull --rebase origin main
-          git push origin HEAD:main
+          for attempt in 1 2 3; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              echo "Push succeeded on attempt ${attempt}"
+              exit 0
+            fi
+            echo "Push failed on attempt ${attempt}, retrying..."
+          done
+          echo "Push failed after 3 attempts"
+          exit 1
