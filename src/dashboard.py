@@ -15,6 +15,7 @@ HISTORY_PATH = Path("data/history.csv")
 BASELINE_PATH = Path("models/baselines.json")
 REPORT_PATH = Path("outputs/signal_report.png")
 PAGE_TITLE = "DSN Operations Console"
+DISPLAY_TIMEZONE = "Africa/Nairobi"
 RECENT_ROWS = 200
 LOOKBACK_OPTIONS = {
     "Last 24 hours": 24,
@@ -29,6 +30,25 @@ SEVERITY_CRITICAL = 8.0
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 LOGGER = logging.getLogger(__name__)
+
+
+def format_display_timestamp(timestamp: pd.Timestamp | None) -> str:
+    """Format timestamps for dashboard display in East Africa Time.
+
+    Args:
+        timestamp: UTC or timezone-aware pandas Timestamp.
+
+    Returns:
+        str: Human-readable timestamp in EAT.
+    """
+    if timestamp is None:
+        return "Unavailable"
+
+    ts = timestamp
+    if ts.tzinfo is None:
+        ts = ts.tz_localize("UTC")
+    eat_ts = ts.tz_convert(DISPLAY_TIMEZONE)
+    return eat_ts.strftime("%Y-%m-%d %H:%M:%S EAT")
 
 
 def apply_dashboard_theme() -> None:
@@ -352,7 +372,7 @@ def render_header(snapshot_df: pd.DataFrame, filtered_df: pd.DataFrame) -> None:
         None.
     """
     latest_timestamp = snapshot_df["timestamp"].max() if not snapshot_df.empty else None
-    last_update = latest_timestamp.strftime("%Y-%m-%d %H:%M:%S UTC") if latest_timestamp is not None else "Unavailable"
+    last_update = format_display_timestamp(latest_timestamp)
     total_downlink_mbps = snapshot_df["downlink_rate"].sum() / 1_000_000 if not snapshot_df.empty else 0.0
     anomaly_count = int(snapshot_df["is_anomaly"].sum()) if not snapshot_df.empty else 0
     active_contacts = int(snapshot_df["is_active"].sum()) if not snapshot_df.empty else 0
@@ -666,7 +686,7 @@ def render_pipeline_health(history_df: pd.DataFrame, baseline_df: pd.DataFrame) 
     history_rows = len(history_df)
     run_count = history_df["timestamp"].nunique() if not history_df.empty else 0
     latest_timestamp = history_df["timestamp"].max() if not history_df.empty else None
-    latest_update = latest_timestamp.strftime("%Y-%m-%d %H:%M:%S UTC") if latest_timestamp is not None else "Unavailable"
+    latest_update = format_display_timestamp(latest_timestamp)
     baseline_count = len(baseline_df)
     output_status = "available" if REPORT_PATH.exists() else "missing"
     freshness, _, _ = freshness_status(latest_timestamp)
