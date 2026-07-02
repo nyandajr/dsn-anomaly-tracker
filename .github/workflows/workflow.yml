@@ -2,7 +2,7 @@ name: DSN Anomaly Tracker
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "3,23,43 * * * *"  # every 20 min, offset off :00 and staggered vs global-fuel-watch's identical old schedule
   workflow_dispatch:
 
 concurrency:
