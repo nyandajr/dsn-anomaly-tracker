@@ -1,9 +1,11 @@
 name: DSN Anomaly Tracker
 
 on:
-  schedule:
-    - cron: "3,23,43 * * * *"  # every 20 min, offset off :00 and staggered vs global-fuel-watch's identical old schedule
-  workflow_dispatch:
+  # schedule disabled 2026-07-07: migrated to a VM-based replacement
+  # (vm_automation/run_and_push.py) -- GitHub Actions was only delivering
+  # ~15% of this cadence in practice. To revert: uncomment the line below.
+  # - cron: "3,23,43 * * * *"  # every 20 min, offset off :00 and staggered vs global-fuel-watch's identical old schedule
+  workflow_dispatch:  # Manual trigger only, while the VM version is being tested
 
 concurrency:
   group: dsn-anomaly-tracker-main
