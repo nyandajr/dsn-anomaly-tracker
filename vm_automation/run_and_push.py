@@ -4,17 +4,34 @@ exact repo/cadence; see hormuz-strait-monitor and ea-financial-tracker for
 the same migration, both since running at ~100%).
 """
 
+import re
 import subprocess
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_DIR = Path(__file__).resolve().parent.parent
 DATA_FILES = ["data/history.csv", "outputs/signal_report.png", "models/baselines.json"]
 
+# main.py prints e.g. "Processed 13 records; flagged 0 anomalies in this run."
+SUMMARY_RE = re.compile(r"Processed (\d+) records; flagged (\d+) anomalies")
+
 
 def run(*args, check=True):
     return subprocess.run(list(args), cwd=str(REPO_DIR), check=check)
+
+
+def run_pipeline():
+    result = subprocess.run(
+        [sys.executable, "main.py"], cwd=str(REPO_DIR),
+        check=True, capture_output=True, text=True,
+    )
+    print(result.stdout, end="")
+    print(result.stderr, end="", file=sys.stderr)
+
+    match = SUMMARY_RE.search(result.stdout)
+    if match:
+        return int(match.group(1)), int(match.group(2))
+    return None, None
 
 
 def sync_with_remote():
@@ -27,7 +44,7 @@ def sync_with_remote():
     run("git", "reset", "--hard", "origin/main")
 
 
-def git_commit_and_push():
+def git_commit_and_push(records, anomalies):
     # freddynyanda@proton.me is Fred's real, verified GitHub email -- the
     # original workflow committed as "DSN Bot <actions@github.com>", an
     # unverified address, so every commit was real but silently uncredited
@@ -41,15 +58,18 @@ def git_commit_and_push():
         print("[run_and_push] no changes to commit")
         return
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    run("git", "commit", "-m", f"chore: DSN update {timestamp} [skip ci]")
+    if records is not None:
+        message = f"chore: DSN update — {records} records, {anomalies} anomalies flagged [skip ci]"
+    else:
+        message = "chore: DSN update [skip ci]"
+    run("git", "commit", "-m", message)
     run("git", "push", "--force", "origin", "HEAD:main")
 
 
 def main():
     sync_with_remote()
-    run(sys.executable, "main.py")
-    git_commit_and_push()
+    records, anomalies = run_pipeline()
+    git_commit_and_push(records, anomalies)
     print("[run_and_push] done")
 
 
