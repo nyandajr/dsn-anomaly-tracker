@@ -6,3 +6,12 @@ __pycache__/
 .env
 .venv/
 venv/
+
+# Regenerated every cycle and never meaningfully diffs against the prior
+# version (binary, no delta compression) -- committing it each run grew
+# .git to >1GB over time and helped trigger the 2026-11-10 OOM incident
+# that took the whole VM's cron down. Still rendered locally by
+# visualize.py for anyone who wants to look at it on disk; just no longer
+# tracked in git. data/history.csv and models/baselines.json still commit
+# every cycle, so this doesn't affect the contribution graph.
+outputs/signal_report.png

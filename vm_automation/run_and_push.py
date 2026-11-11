@@ -10,7 +10,11 @@ import sys
 from pathlib import Path
 
 REPO_DIR = Path(__file__).resolve().parent.parent
-DATA_FILES = ["data/history.csv", "outputs/signal_report.png", "models/baselines.json"]
+DATA_FILES = ["data/history.csv", "models/baselines.json"]
+# outputs/signal_report.png is intentionally excluded -- regenerated every
+# cycle, never diffs well (binary), and committing it every 10 min grew
+# .git past 1GB and helped trigger the 2026-11-10 OOM/cron-death incident.
+# Still rendered to disk each run; just gitignored now.
 
 # main.py prints e.g. "Processed 13 records; flagged 0 anomalies in this run."
 SUMMARY_RE = re.compile(r"Processed (\d+) records; flagged (\d+) anomalies")
